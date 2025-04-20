@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -27,17 +28,25 @@ export default function About() {
 
     return (
         <div className='space-y-6 p-4'>
+
+            {/* Logo and App Name */}
+            <div className='flex flex-col items-center space-y-2 mb-4'>
+                <Image src='/logo.svg' alt='AIRQuant Logo' width={80} height={80} />
+                <h1 className='text-2xl font-bold'>AIRQuant</h1>
+                <p className='text-sm text-muted-foreground'>By Team Entropy</p>
+            </div>
+
             <Card>
                 <CardHeader>
-                    <CardTitle>About Entropy IoT Platform</CardTitle>
-                    <CardDescription>Transforming data into insights</CardDescription>
+                    <CardTitle>About AIRQuant</CardTitle>
+                    <CardDescription>Transforming air quality data into actionable insights</CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
                     <div>
                         <h3 className='text-lg font-semibold mb-2'>Our Journey</h3>
                         <p className='text-muted-foreground'>
-                            Started in 2024, our IoT platform aims to revolutionize how we collect and visualize sensor data.
-                            We believe in making complex data accessible and actionable for everyone.
+                            Founded in 2024 by Team Entropy, AIRQuant is an IoT platform designed to revolutionize air quality monitoring and data visualization.
+                            Our mission is to make environmental data simple, accessible, and useful to everyone.
                         </p>
                     </div>
 
@@ -57,7 +66,7 @@ export default function About() {
             <Card>
                 <CardHeader>
                     <CardTitle>Our Team</CardTitle>
-                    <CardDescription>Meet the people behind the platform</CardDescription>
+                    <CardDescription>Meet the minds behind AIRQuant</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
@@ -107,10 +116,10 @@ export default function About() {
                         <span className='font-semibold'>Competition:</span> Nickel Asia Corporation (NAC) Innovation Challenge
                     </div>
                     <div>
-                        <span className='font-semibold'>Project Advisor:</span> Ma&aposam Grace
+                        <span className='font-semibold'>Project Advisor:</span> Ma&apos;am Grace
                     </div>
                 </CardContent>
             </Card>
         </div>
     )
-} 
+}

@@ -11,6 +11,7 @@ export const useDeviceData = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+    const [timeFilter, setTimeFilter] = useState('all') // Default to 'all' to show all metrics initially
 
     const fetchData = useCallback(async () => {
         if (!deviceCode || !isAuthenticated) {
@@ -19,12 +20,12 @@ export const useDeviceData = () => {
         }
 
         try {
-            const response = await fetch(`/api/device/${deviceCode}/data`, {
+            const response = await fetch(`/api/device/readings?deviceCode=${deviceCode}&timeFilter=${timeFilter}`, {
                 method: 'GET',
                 headers: {
                     'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
+                    'Pragma': 'no-cache',
+                },
             })
 
             if (!response.ok) {
@@ -34,7 +35,7 @@ export const useDeviceData = () => {
 
             const deviceData = await response.json()
 
-            // Validate the data structure
+            // Basic validation
             if (!deviceData.temperature || !deviceData.humidity || !deviceData.timestamp) {
                 throw new Error('Invalid data format received')
             }
@@ -49,25 +50,20 @@ export const useDeviceData = () => {
         } finally {
             setIsLoading(false)
         }
-    }, [deviceCode, isAuthenticated])
+    }, [deviceCode, isAuthenticated, timeFilter])
 
-    // Initial fetch and polling setup
     useEffect(() => {
         if (!isAuthenticated || !deviceCode) {
             setIsLoading(false)
             return
         }
 
-        // Initial fetch
         fetchData()
 
-        // Setup polling interval (every 1 second)
-        const interval = setInterval(fetchData, 1000)
+        // Set up polling for real-time updates
+        const interval = setInterval(fetchData, 30000) // Fetch every 30 seconds
 
-        // Cleanup
-        return () => {
-            clearInterval(interval)
-        }
+        return () => clearInterval(interval)
     }, [deviceCode, isAuthenticated, fetchData])
 
     const refreshData = useCallback(() => {
@@ -75,11 +71,19 @@ export const useDeviceData = () => {
         fetchData()
     }, [fetchData])
 
+    const updateTimeFilter = useCallback((newFilter: string) => {
+        setTimeFilter(newFilter)
+        setIsLoading(true)
+        // The fetchData will be called automatically due to the dependency on timeFilter
+    }, [])
+
     return {
         data,
         isLoading,
         error,
         lastUpdated,
-        refreshData
+        refreshData,
+        timeFilter,
+        updateTimeFilter,
     }
 }

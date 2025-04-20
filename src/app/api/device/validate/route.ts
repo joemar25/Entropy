@@ -1,3 +1,4 @@
+// src\app\api\device\validate\route.ts
 import { NextResponse } from 'next/server'
 import { VALID_DEVICE_CODES } from '@/constants/device'
 

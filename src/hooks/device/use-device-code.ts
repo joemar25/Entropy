@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface DeviceCodeStore {
     deviceCode: string | null
@@ -19,13 +19,17 @@ export const useDeviceCode = create<DeviceCodeStore>()(
                 deviceCode: code,
                 isAuthenticated: Boolean(code)
             }),
-            clearDeviceCode: () => set({
-                deviceCode: null,
-                isAuthenticated: false
-            }),
+            clearDeviceCode: () => {
+                localStorage.removeItem('deviceCode')
+                set({
+                    deviceCode: null,
+                    isAuthenticated: false
+                })
+            },
         }),
         {
             name: 'device-code-storage',
+            storage: createJSONStorage(() => localStorage)
         }
     )
-) 
+)

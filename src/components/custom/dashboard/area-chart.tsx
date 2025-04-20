@@ -12,9 +12,15 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 
 interface AreaChartProps {
     data: ChartDataPoint[]
+    selectedMetrics: string[]
+    onRefresh?: () => void
 }
 
-export function DashboardAreaChart({ data }: AreaChartProps) {
+export function DashboardAreaChart({
+    data,
+    selectedMetrics,
+    onRefresh
+}: AreaChartProps) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     return (
@@ -23,6 +29,7 @@ export function DashboardAreaChart({ data }: AreaChartProps) {
             dataLength={data.length}
             isExpanded={isExpanded}
             onToggleExpand={() => setIsExpanded(!isExpanded)}
+            onRefresh={onRefresh}
         >
             <ResponsiveContainer width='100%' height={300}>
                 <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -31,18 +38,22 @@ export function DashboardAreaChart({ data }: AreaChartProps) {
                     <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    {metrics.map((metric) => (
-                        <Area
-                            key={metric.key}
-                            type='monotone'
-                            dataKey={metric.key}
-                            stroke={metric.color}
-                            fill={metric.color}
-                            className={styles.chartLine}
-                        />
-                    ))}
+                    {metrics
+                        .filter(metric => selectedMetrics.includes(metric.key))
+                        .map((metric) => (
+                            <Area
+                                key={metric.key}
+                                type='monotone'
+                                dataKey={metric.key}
+                                name={metric.name}
+                                stroke={metric.color}
+                                fill={metric.color}
+                                fillOpacity={0.3}
+                                className={styles.chartLine}
+                            />
+                        ))}
                 </AreaChart>
             </ResponsiveContainer>
         </ChartCard>
     )
-} 
+}

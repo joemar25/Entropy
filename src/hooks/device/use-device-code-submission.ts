@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDeviceCode } from './use-device-code'
 
@@ -10,6 +10,15 @@ export const useDeviceCodeSubmission = () => {
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
     const { setDeviceCode: setStoredDeviceCode } = useDeviceCode()
+
+    // Check if device code exists on mount
+    useEffect(() => {
+        const savedDeviceCode = localStorage.getItem('deviceCode') // Or use another storage method if necessary
+        if (savedDeviceCode) {
+            setDeviceCode(savedDeviceCode)
+            router.push('/dashboard') // Automatically redirect if device code exists
+        }
+    }, [router])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -32,6 +41,7 @@ export const useDeviceCodeSubmission = () => {
 
             if (response.ok && data.success) {
                 setStoredDeviceCode(deviceCode.trim())
+                localStorage.setItem('deviceCode', deviceCode.trim()) // Store device code in local storage
                 toast.success('Device code accepted')
                 router.push('/dashboard')
             } else {
@@ -41,11 +51,13 @@ export const useDeviceCodeSubmission = () => {
                     : data.message || 'Failed to verify device code'
                 toast.error(errorMessage)
                 setStoredDeviceCode(null)
+                localStorage.removeItem('deviceCode') // Clear local storage on failure
             }
         } catch (error) {
             console.error('Error submitting device code:', error)
             toast.error('Failed to verify device code')
             setStoredDeviceCode(null)
+            localStorage.removeItem('deviceCode') // Clear local storage on error
         } finally {
             setIsLoading(false)
         }
@@ -57,4 +69,4 @@ export const useDeviceCodeSubmission = () => {
         isLoading,
         handleSubmit,
     }
-} 
+}

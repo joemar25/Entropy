@@ -20,6 +20,7 @@ interface ChartProps {
     timeFilter: string
     onTimeFilterChangeAction: (value: string) => void
     timeFilters: Array<{ value: string; label: string }>
+    selectedMetrics?: string[]
     onRefresh?: () => void
 }
 
@@ -35,6 +36,10 @@ interface ZoomState {
 
 export function DashboardChart({
     data,
+    timeFilter,
+    onTimeFilterChangeAction,
+    timeFilters,
+    selectedMetrics = [],
     onRefresh,
 }: ChartProps) {
     const [isExpanded, setIsExpanded] = useState(false)
@@ -129,21 +134,23 @@ export function DashboardChart({
                             fontSize: '12px'
                         }}
                     />
-                    {metrics.map((metric) => (
-                        <Line
-                            key={metric.key}
-                            type="monotone"
-                            dataKey={metric.key}
-                            name={metric.name}
-                            stroke={metric.color}
-                            yAxisId="left"
-                            dot={false}
-                            strokeWidth={highlightedMetric === metric.key ? 3 : 1.5}
-                            opacity={highlightedMetric ? (highlightedMetric === metric.key ? 1 : 0.3) : 1}
-                            activeDot={{ r: 4, strokeWidth: 0 }}
-                            className={styles.chartLine}
-                        />
-                    ))}
+                    {metrics
+                        .filter(metric => selectedMetrics.length === 0 || selectedMetrics.includes(metric.key))
+                        .map((metric) => (
+                            <Line
+                                key={metric.key}
+                                type="monotone"
+                                dataKey={metric.key}
+                                name={metric.name}
+                                stroke={metric.color}
+                                yAxisId="left"
+                                dot={false}
+                                strokeWidth={highlightedMetric === metric.key ? 3 : 1.5}
+                                opacity={highlightedMetric ? (highlightedMetric === metric.key ? 1 : 0.3) : 1}
+                                activeDot={{ r: 4, strokeWidth: 0 }}
+                                className={styles.chartLine}
+                            />
+                        ))}
                     {zoomState.refAreaLeft && zoomState.refAreaRight && (
                         <ReferenceArea
                             yAxisId="left"

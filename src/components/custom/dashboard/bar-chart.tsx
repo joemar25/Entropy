@@ -12,9 +12,15 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 interface BarChartProps {
     data: ChartDataPoint[]
+    selectedMetrics: string[]
+    onRefresh?: () => void
 }
 
-export function DashboardBarChart({ data }: BarChartProps) {
+export function DashboardBarChart({
+    data,
+    selectedMetrics,
+    onRefresh
+}: BarChartProps) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     return (
@@ -23,6 +29,7 @@ export function DashboardBarChart({ data }: BarChartProps) {
             dataLength={data.length}
             isExpanded={isExpanded}
             onToggleExpand={() => setIsExpanded(!isExpanded)}
+            onRefresh={onRefresh}
         >
             <ResponsiveContainer width='100%' height={300}>
                 <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -31,16 +38,19 @@ export function DashboardBarChart({ data }: BarChartProps) {
                     <YAxis />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend />
-                    {metrics.map((metric) => (
-                        <Bar
-                            key={metric.key}
-                            dataKey={metric.key}
-                            fill={metric.color}
-                            className={styles.chartLine}
-                        />
-                    ))}
+                    {metrics
+                        .filter(metric => selectedMetrics.includes(metric.key))
+                        .map((metric) => (
+                            <Bar
+                                key={metric.key}
+                                dataKey={metric.key}
+                                name={metric.name}
+                                fill={metric.color}
+                                className={styles.chartLine}
+                            />
+                        ))}
                 </BarChart>
             </ResponsiveContainer>
         </ChartCard>
     )
-} 
+}

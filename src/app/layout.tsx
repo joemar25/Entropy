@@ -1,11 +1,10 @@
 import './globals.css'
-
 import localFont from 'next/font/local'
-
 import { Metadata } from 'next'
 import { Toaster } from 'sonner'
-import { ThemeProvider } from '@/components/provider/theme-provider'
 import { Header } from '@/components/custom/header'
+import { Footer } from '@/components/custom/footer'
+import { ThemeProvider } from '@/components/provider/theme-provider'
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -31,8 +30,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang='en' className={`${geistSans.className} ${geistMono.variable} antialiased`} suppressHydrationWarning>
-      <body className='text-foreground select-none bg-background min-h-screen overflow-x-hidden'>
+    <html
+      lang='en'
+      className={`${geistSans.className} ${geistMono.variable} antialiased`}
+      suppressHydrationWarning
+    >
+      <body className='text-foreground select-none bg-background min-h-screen overflow-x-hidden' suppressHydrationWarning>
         <ThemeProvider
           attribute='class'
           defaultTheme='system'
@@ -43,15 +46,15 @@ export default function RootLayout({
             <Header />
             <main className='flex-1 flex flex-col'>
               <div className='container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 max-w-7xl'>
-                <div className='w-full space-y-4 sm:space-y-6 lg:space-y-8'>
-                  {children}
-                </div>
+                {children}
               </div>
             </main>
+            <Footer />
           </div>
+
           <Toaster
             position='top-right'
-             richColors
+            richColors
             closeButton
             theme='system'
             className='toaster-override'

@@ -1,3 +1,4 @@
+// src/types/device.ts
 export interface DeviceData {
     temperature: number[]
     humidity: number[]
@@ -11,7 +12,7 @@ export interface DeviceData {
     timestamp: string[]
 }
 
-export type ChartDataPoint = {
+export interface ChartDataPoint {
     time: string
     temperature: number
     humidity: number
@@ -24,19 +25,15 @@ export type ChartDataPoint = {
     so2: number
 }
 
-export type DeviceMetric = keyof Omit<DeviceData, 'timestamp'>
+export interface Warning {
+    title: string
+    message: string
+    timestamp: string
+}
 
-export function deviceDataToChartPoints(data: DeviceData): ChartDataPoint[] {
-    return data.timestamp.map((time, index) => ({
-        time: new Date(time).toLocaleTimeString(),
-        temperature: data.temperature[index],
-        humidity: data.humidity[index],
-        pm25: data.pm25[index],
-        voc: data.voc[index],
-        o3: data.o3[index],
-        co: data.co[index],
-        co2: data.co2[index],
-        no2: data.no2[index],
-        so2: data.so2[index]
-    }))
+export interface MetricDefinition {
+    key: string
+    name: string
+    color: string
+    unit: string
 }
