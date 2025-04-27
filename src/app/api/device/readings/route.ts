@@ -1,88 +1,166 @@
-// src/app/api/device/readings/route.ts
-import { NextResponse } from 'next/server'
-import path from 'path'
-import fs from 'fs/promises'
-import { existsSync } from 'fs'
-import type { NextRequest } from 'next/server'
-import type { DeviceData } from '@/types/device'
+import { NextResponse } from 'next/server';
+import path from 'path';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+import { watch } from 'fs';
+import type { NextRequest } from 'next/server';
+import type { DeviceData } from '@/types/device';
 
+// Define Reading interface
 interface Reading {
-    "CO (ppm)": number
-    "CO2 (ppm)": number
-    "O3 (ppm)": number
-    "SO2 (ppm)": number
-    "NO2 (ppm)": number
-    "VOCs (ppm)": number
-    "PM2.5 (ug/m3)": number
-    timestamp: string
+    'CO (ppm)': number;
+    'CO2 (ppm)': number;
+    'O3 (ppm)': number;
+    'SO2 (ppm)': number;
+    'NO2 (ppm)': number;
+    'VOCs (ppm)': number;
+    'PM2.5 (ug/m3)': number;
+    timestamp: string;
 }
 
-// Read the JSON file and return all readings
-async function getAllReadings(): Promise<Reading[]> {
+// Configuration for data source
+const USE_DUMMY_REALTIME = true; // Set to false to use JSON file
+const USE_REALTIME = false; // Set to false for now
+
+// Validate environment configuration
+if (USE_DUMMY_REALTIME && USE_REALTIME) {
+    console.warn('Both DUMMY_REALTIME and REALTIME are true. Prioritizing DUMMY_REALTIME.');
+}
+
+// In-memory cache for JSON readings and dummy readings
+let jsonReadings: Reading[] = []; // Cache for readings.json
+// eslint-disable-next-line prefer-const
+let dummyReadings: Reading[] = []; // Cache for dummy data, mutated in updateDummyReadings
+let lastModified: number | null = null;
+
+// Generate dummy real-time reading
+function generateDummyReading(timestamp: string): Reading {
+    return {
+        'CO (ppm)': Math.random() * 0.5,
+        'CO2 (ppm)': 400 + Math.random() * 50,
+        'O3 (ppm)': Math.random() * 0.1,
+        'SO2 (ppm)': Math.random() * 0.1,
+        'NO2 (ppm)': Math.random() * 0.1,
+        'VOCs (ppm)': Math.random() * 0.2,
+        'PM2.5 (ug/m3)': 0.1 + Math.random() * 5,
+        timestamp,
+    };
+}
+
+// Simulate real-time updates by appending new dummy readings (in-memory only)
+async function updateDummyReadings() {
+    if (USE_DUMMY_REALTIME) {
+        const now = new Date().toISOString();
+        const newReading = generateDummyReading(now);
+        dummyReadings.push(newReading);
+        // Keep only the last 100 readings to prevent memory bloat
+        if (dummyReadings.length > 100) {
+            dummyReadings.shift();
+        }
+        console.log('Generated new dummy reading (in-memory only):', newReading);
+    }
+}
+
+// Read JSON file and return all readings
+async function getJsonReadings(): Promise<Reading[]> {
     try {
-        const filePath = path.join(process.cwd(), 'src', 'data', 'readings.json')
+        const filePath = path.join(process.cwd(), 'src', 'data', 'readings.json');
 
         if (!existsSync(filePath)) {
-            throw new Error('readings.json file not found')
+            console.warn('readings.json not found, initializing empty JSON cache');
+            jsonReadings = [];
+            return jsonReadings;
         }
 
-        const fileContent = await fs.readFile(filePath, 'utf-8')
-        const readings = JSON.parse(fileContent) as Reading[]
-        return readings
+        const stats = await fs.stat(filePath);
+        const modified = stats.mtimeMs;
+
+        // Only read file if it has changed or cache is empty
+        if (jsonReadings.length === 0 || lastModified === null || modified > lastModified) {
+            const fileContent = await fs.readFile(filePath, 'utf-8');
+            jsonReadings = JSON.parse(fileContent) as Reading[];
+            lastModified = modified;
+            console.log('Loaded readings from JSON (read-only):', jsonReadings.length);
+        }
+
+        return jsonReadings;
     } catch (error) {
-        console.error('Error reading from readings.json:', error)
-        throw error
+        console.error('Error reading readings.json:', error);
+        jsonReadings = []; // Reset JSON cache on error
+        return jsonReadings;
     }
 }
 
+// Watch readings.json for changes
+function watchReadingsFile() {
+    const filePath = path.join(process.cwd(), 'src', 'data', 'readings.json');
+    if (existsSync(filePath)) {
+        watch(filePath, async (event) => {
+            if (event === 'change') {
+                console.log('readings.json changed, updating JSON cache (read-only)');
+                await getJsonReadings();
+            }
+        });
+    } else {
+        console.warn('readings.json not found, file watcher not started');
+    }
+}
+
+// Initialize file watcher and dummy data updates
+if (USE_DUMMY_REALTIME) {
+    setInterval(updateDummyReadings, 5000); // Update every 5 seconds
+}
+watchReadingsFile();
+
+// Get readings based on configuration
+async function getAllReadings(): Promise<Reading[]> {
+    if (USE_DUMMY_REALTIME) {
+        return dummyReadings.length ? dummyReadings : [generateDummyReading(new Date().toISOString())];
+    }
+
+    if (USE_REALTIME) {
+        console.warn('Real-time data fetching not implemented, falling back to JSON data');
+        return getJsonReadings();
+    }
+
+    return getJsonReadings();
+}
+
+// Convert readings to DeviceData format
 function convertReadingsToDeviceData(readings: Reading[]): DeviceData {
-    const temperature: number[] = []
-    const humidity: number[] = []
-    const pm25: number[] = []
-    const voc: number[] = []
-    const o3: number[] = []
-    const co: number[] = []
-    const co2: number[] = []
-    const no2: number[] = []
-    const so2: number[] = []
-    const timestamp: string[] = []
+    const deviceData: DeviceData = {
+        temperature: [],
+        humidity: [],
+        pm25: [],
+        voc: [],
+        o3: [],
+        co: [],
+        co2: [],
+        no2: [],
+        so2: [],
+        timestamp: [],
+    };
 
-    for (let i = 0; i < readings.length; i++) {
-        const r = readings[i]
+    readings.forEach((reading, index) => {
+        const temperature = 22 + Math.sin(index / 5) * 2 + Math.random() * 0.5;
+        const humidity = 45 + Math.cos(index / 4) * 10 + Math.random() * 2;
 
-        // Generate synthetic temperature/humidity data since it's not in the JSON
-        const fakeTemp = 24 + Math.sin(i / 5) * 1.5
-        const fakeHum = 50 + Math.cos(i / 4) * 5
+        deviceData.temperature.push(Number(temperature.toFixed(2)));
+        deviceData.humidity.push(Number(humidity.toFixed(2)));
+        deviceData.pm25.push(reading['PM2.5 (ug/m3)']);
+        deviceData.voc.push(reading['VOCs (ppm)']);
+        deviceData.o3.push(reading['O3 (ppm)']);
+        deviceData.co.push(reading['CO (ppm)']);
+        deviceData.co2.push(reading['CO2 (ppm)']);
+        deviceData.no2.push(reading['NO2 (ppm)']);
+        deviceData.so2.push(reading['SO2 (ppm)']);
+        deviceData.timestamp.push(reading.timestamp);
+    });
 
-        temperature.push(parseFloat(fakeTemp.toFixed(2)))
-        humidity.push(parseFloat(fakeHum.toFixed(2)))
-
-        pm25.push(r["PM2.5 (ug/m3)"])
-        voc.push(r["VOCs (ppm)"])
-        o3.push(r["O3 (ppm)"])
-        co.push(r["CO (ppm)"])
-        co2.push(r["CO2 (ppm)"])
-        no2.push(r["NO2 (ppm)"])
-        so2.push(r["SO2 (ppm)"])
-
-        // Ensure we have valid timestamps
-        timestamp.push(r.timestamp ?? new Date().toISOString())
-    }
-
-    return {
-        temperature,
-        humidity,
-        pm25,
-        voc,
-        o3,
-        co,
-        co2,
-        no2,
-        so2,
-        timestamp,
-    }
+    return deviceData;
 }
 
+// API Handler
 export async function GET(request: NextRequest) {
     try {
         const url = new URL(request.url);
@@ -95,82 +173,53 @@ export async function GET(request: NextRequest) {
 
         const allReadings = await getAllReadings();
 
-        // Ensure we have at least one reading to work with
-        if (allReadings.length === 0) {
+        if (!allReadings.length) {
             return NextResponse.json({ error: 'No readings available' }, { status: 404 });
         }
 
-        let filteredReadings = [...allReadings];
+        // Sort readings by timestamp (ascending)
+        const sortedReadings = allReadings.sort(
+            (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
 
-        // Apply time-based filtering using original timestamps
-        const now = Date.now();
+        // Apply time-based filtering
+        let filteredReadings = sortedReadings;
+        const now = new Date();
 
-        // Check if we have any timestamps in the requested time range
-        const hasRecentData = timeFilter !== 'all' &&
-            timeFilter !== '10' &&
-            timeFilter !== '30' &&
-            allReadings.some(r => {
-                const timestamp = new Date(r.timestamp).getTime();
-                let timeThreshold;
-
-                if (timeFilter === '24h') timeThreshold = now - 24 * 3600 * 1000;
-                else if (timeFilter === '6h') timeThreshold = now - 6 * 3600 * 1000;
-                else if (timeFilter === '1h') timeThreshold = now - 3600 * 1000;
-                else return false;
-
-                return timestamp >= timeThreshold;
-            });
-
-        // If no data in the time range and using a time-based filter, use the most recent readings
-        if (timeFilter !== 'all' && !hasRecentData && (timeFilter === '1h' || timeFilter === '6h' || timeFilter === '24h')) {
-            console.log(`No data for ${timeFilter}, using most recent data instead`);
-
-            // Sort by timestamp (newest first) and take appropriate number of readings
-            filteredReadings = [...allReadings].sort((a, b) =>
-                new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-            );
-
-            const count = timeFilter === '1h' ? 5 : timeFilter === '6h' ? 10 : 20;
-            filteredReadings = filteredReadings.slice(0, Math.min(count, filteredReadings.length));
-        } else {
-            // Apply normal time-based filtering
-            switch (timeFilter) {
-                case '24h':
-                    filteredReadings = allReadings.filter(r =>
-                        new Date(r.timestamp).getTime() >= now - 24 * 3600 * 1000
-                    );
-                    break;
-                case '6h':
-                    filteredReadings = allReadings.filter(r =>
-                        new Date(r.timestamp).getTime() >= now - 6 * 3600 * 1000
-                    );
-                    break;
-                case '1h':
-                    filteredReadings = allReadings.filter(r =>
-                        new Date(r.timestamp).getTime() >= now - 3600 * 1000
-                    );
-                    break;
-                case '30':
-                    filteredReadings = allReadings.slice(-30);
-                    break;
-                case '10':
-                    filteredReadings = allReadings.slice(-10);
-                    break;
-                case 'all':
-                default:
-                    // No filtering needed
-                    break;
-            }
+        switch (timeFilter) {
+            case '1h':
+                filteredReadings = sortedReadings.filter(
+                    (r) => now.getTime() - new Date(r.timestamp).getTime() <= 3600 * 1000
+                );
+                break;
+            case '6h':
+                filteredReadings = sortedReadings.filter(
+                    (r) => now.getTime() - new Date(r.timestamp).getTime() <= 6 * 3600 * 1000
+                );
+                break;
+            case '24h':
+                filteredReadings = sortedReadings.filter(
+                    (r) => now.getTime() - new Date(r.timestamp).getTime() <= 24 * 3600 * 1000
+                );
+                break;
+            case '10':
+                filteredReadings = sortedReadings.slice(-10);
+                break;
+            case '30':
+                filteredReadings = sortedReadings.slice(-30);
+                break;
+            case 'all':
+            default:
+                break;
         }
 
-        // Make sure we always have at least one reading
-        if (filteredReadings.length === 0) {
-            console.log(`No data after filtering for ${timeFilter}, using most recent reading`);
-            filteredReadings = [allReadings[allReadings.length - 1]];
+        if (!filteredReadings.length) {
+            console.log(`No data for ${timeFilter}, returning most recent reading`);
+            filteredReadings = [sortedReadings[sortedReadings.length - 1]];
         }
 
-        // Convert readings to device data
         const deviceData = convertReadingsToDeviceData(filteredReadings);
+
         return new NextResponse(JSON.stringify(deviceData), {
             status: 200,
             headers: {

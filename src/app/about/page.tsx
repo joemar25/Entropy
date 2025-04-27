@@ -45,7 +45,7 @@ export default function About() {
                     <div>
                         <h3 className='text-lg font-semibold mb-2'>Our Journey</h3>
                         <p className='text-muted-foreground'>
-                            Founded in 2024 by Team Entropy, AIRQuant is an IoT platform designed to revolutionize air quality monitoring and data visualization.
+                            Founded in 2023 by Team Entropy, AIRQuant is an IoT platform designed to revolutionize air quality monitoring and data visualization.
                             Our mission is to make environmental data simple, accessible, and useful to everyone.
                         </p>
                     </div>

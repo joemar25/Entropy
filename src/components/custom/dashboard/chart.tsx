@@ -1,37 +1,36 @@
-'use client'
+// src/components/custom/dashboard/chart.tsx
+'use client';
 
-import type { ChartDataPoint } from '@/types/device'
-
-import ChartCard from '@/components/custom/dashboard/chart-card'
-import CustomTooltip from '@/components/custom/dashboard/custom-tooltip'
-
-import { styles } from '@/utils/styles'
-import { metrics } from '@/constants/metric'
-import { useState, useCallback } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea, CartesianGrid, Legend } from 'recharts'
+import type { ChartDataPoint } from '@/types/device';
+import ChartCard from '@/components/custom/dashboard/chart-card';
+import CustomTooltip from '@/components/custom/dashboard/custom-tooltip';
+import { styles } from '@/utils/styles';
+import { metrics } from '@/constants/metric';
+import { useState, useCallback } from 'react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea, CartesianGrid, Legend } from 'recharts';
 
 interface ZoomEvent {
-    activeLabel?: string
-    dataKey?: string
+    activeLabel?: string;
+    dataKey?: string;
 }
 
 interface ChartProps {
-    data: ChartDataPoint[]
-    timeFilter: string
-    onTimeFilterChangeAction: (value: string) => void
-    timeFilters: Array<{ value: string; label: string }>
-    selectedMetrics?: string[]
-    onRefresh?: () => void
+    data: ChartDataPoint[];
+    timeFilter: string;
+    onTimeFilterChangeAction: (value: string) => void;
+    timeFilters: Array<{ value: string; label: string }>;
+    selectedMetrics?: string[];
+    onRefresh?: () => void;
 }
 
 interface ZoomState {
-    left: string | number
-    right: string | number
-    refAreaLeft: string
-    refAreaRight: string
-    top: string | number
-    bottom: string | number
-    animation: boolean
+    left: string | number;
+    right: string | number;
+    refAreaLeft: string;
+    refAreaRight: string;
+    top: string | number;
+    bottom: string | number;
+    animation: boolean;
 }
 
 export function DashboardChart({
@@ -42,8 +41,8 @@ export function DashboardChart({
     selectedMetrics = [],
     onRefresh,
 }: ChartProps) {
-    const [isExpanded, setIsExpanded] = useState(false)
-    const [highlightedMetric] = useState<string | null>(null)
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [highlightedMetric] = useState<string | null>(null);
     const [zoomState, setZoomState] = useState<ZoomState>({
         left: 'dataMin',
         right: 'dataMax',
@@ -51,45 +50,48 @@ export function DashboardChart({
         refAreaRight: '',
         top: 'dataMax',
         bottom: 'dataMin',
-        animation: true
-    })
+        animation: true,
+    });
 
     const handleZoomStart = useCallback((event: ZoomEvent) => {
-        const label = event?.activeLabel
-        if (!label) return
+        const label = event?.activeLabel;
+        if (!label) return;
 
-        setZoomState(prev => ({
+        setZoomState((prev) => ({
             ...prev,
-            refAreaLeft: label
-        }))
-    }, [])
+            refAreaLeft: label,
+        }));
+    }, []);
 
-    const handleZoomMove = useCallback((event: ZoomEvent) => {
-        const label = event?.activeLabel
-        if (!label || !zoomState.refAreaLeft) return
+    const handleZoomMove = useCallback(
+        (event: ZoomEvent) => {
+            const label = event?.activeLabel;
+            if (!label || !zoomState.refAreaLeft) return;
 
-        setZoomState(prev => ({
-            ...prev,
-            refAreaRight: label
-        }))
-    }, [zoomState.refAreaLeft])
+            setZoomState((prev) => ({
+                ...prev,
+                refAreaRight: label,
+            }));
+        },
+        [zoomState.refAreaLeft]
+    );
 
     const handleZoomEnd = useCallback(() => {
         if (!zoomState.refAreaLeft || !zoomState.refAreaRight) {
-            return
+            return;
         }
 
-        const left = zoomState.refAreaLeft
-        const right = zoomState.refAreaRight
+        const left = zoomState.refAreaLeft;
+        const right = zoomState.refAreaRight;
 
-        setZoomState(prev => ({
+        setZoomState((prev) => ({
             ...prev,
             refAreaLeft: '',
             refAreaRight: '',
             left: left > right ? right : left,
-            right: left > right ? left : right
-        }))
-    }, [zoomState])
+            right: left > right ? left : right,
+        }));
+    }, [zoomState]);
 
     return (
         <ChartCard
@@ -99,7 +101,24 @@ export function DashboardChart({
             onToggleExpand={() => setIsExpanded(!isExpanded)}
             onRefresh={onRefresh}
         >
-            <ResponsiveContainer width='100%' height='100%'>
+            <div className="mb-4">
+                <label htmlFor="time-filter-select" className="text-sm font-medium mr-2">
+                    Time Range
+                </label>
+                <select
+                    id="time-filter-select"
+                    value={timeFilter}
+                    onChange={(e) => onTimeFilterChangeAction(e.target.value)}
+                    className="w-[180px] border rounded p-2 text-sm"
+                >
+                    {timeFilters.map((filter) => (
+                        <option key={filter.value} value={filter.value}>
+                            {filter.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                     data={data}
                     margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
@@ -109,8 +128,8 @@ export function DashboardChart({
                 >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis
-                        dataKey='time'
-                        stroke='#888888'
+                        dataKey="time"
+                        stroke="#888888"
                         fontSize={12}
                         angle={-45}
                         textAnchor="end"
@@ -119,23 +138,18 @@ export function DashboardChart({
                         tick={{ fill: '#888888' }}
                         domain={[zoomState.left, zoomState.right]}
                     />
-                    <YAxis
-                        yAxisId="left"
-                        orientation="left"
-                        stroke='#888888'
-                        tick={{ fill: '#888888' }}
-                    />
+                    <YAxis yAxisId="left" orientation="left" stroke="#888888" tick={{ fill: '#888888' }} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend
                         verticalAlign="top"
                         height={36}
                         wrapperStyle={{
                             paddingBottom: '20px',
-                            fontSize: '12px'
+                            fontSize: '12px',
                         }}
                     />
                     {metrics
-                        .filter(metric => selectedMetrics.length === 0 || selectedMetrics.includes(metric.key))
+                        .filter((metric) => selectedMetrics.length === 0 || selectedMetrics.includes(metric.key))
                         .map((metric) => (
                             <Line
                                 key={metric.key}
@@ -162,5 +176,5 @@ export function DashboardChart({
                 </LineChart>
             </ResponsiveContainer>
         </ChartCard>
-    )
-} 
+    );
+}
