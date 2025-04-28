@@ -39,7 +39,7 @@ export default function RootLayout({
       <body className='text-foreground select-none bg-background min-h-screen overflow-x-hidden' suppressHydrationWarning>
         <ThemeProvider
           attribute='class'
-          defaultTheme='system'
+          defaultTheme='light'
           enableSystem
           disableTransitionOnChange
         >

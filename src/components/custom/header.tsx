@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, Users, LayoutDashboard, LogOut, Maximize2, Minimize2 } from 'lucide-react'
+import { HomeIcon, Users, LayoutDashboard, LogOut, Maximize2, Minimize2, HelpingHand } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
@@ -31,6 +31,11 @@ export function Header() {
                     icon: <HomeIcon className='w-4 h-4' />,
                 },
             ]),
+        {
+            name: 'Contaminants',
+            path: '/contaminants',
+            icon: <HelpingHand className='w-4 h-4' />,
+        },
         {
             name: 'About',
             path: '/about',
