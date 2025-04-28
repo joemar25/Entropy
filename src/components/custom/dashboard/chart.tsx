@@ -1,4 +1,3 @@
-// src/components/custom/dashboard/chart.tsx
 'use client';
 
 import type { ChartDataPoint } from '@/types/device';
@@ -38,7 +37,6 @@ export function DashboardChart({
     selectedMetrics = [],
     onRefresh,
 }: ChartProps) {
-    const [isExpanded, setIsExpanded] = useState(false);
     const [highlightedMetric] = useState<string | null>(null);
     const [zoomState, setZoomState] = useState<ZoomState>({
         left: 'dataMin',
@@ -91,14 +89,8 @@ export function DashboardChart({
     }, [zoomState]);
 
     return (
-        <ChartCard
-            title="Real-time Monitoring"
-            dataLength={data.length}
-            isExpanded={isExpanded}
-            onToggleExpand={() => setIsExpanded(!isExpanded)}
-            onRefresh={onRefresh}
-        >
-            <ResponsiveContainer width="100%" height="100%">
+        <ChartCard title="Real-time Monitoring" dataLength={data.length} onRefresh={onRefresh}>
+            <ResponsiveContainer width="100%" height={400}>
                 <LineChart
                     data={data}
                     margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
@@ -114,7 +106,7 @@ export function DashboardChart({
                         angle={-45}
                         textAnchor="end"
                         height={70}
-                        interval={0}
+                        interval="preserveStartEnd"
                         tick={{ fill: '#888888' }}
                         domain={[zoomState.left, zoomState.right]}
                     />
@@ -143,6 +135,9 @@ export function DashboardChart({
                                 opacity={highlightedMetric ? (highlightedMetric === metric.key ? 1 : 0.3) : 1}
                                 activeDot={{ r: 4, strokeWidth: 0 }}
                                 className={styles.chartLine}
+                                isAnimationActive={true}
+                                animationDuration={200}
+                                animationEasing="ease-in-out"
                             />
                         ))}
                     {zoomState.refAreaLeft && zoomState.refAreaRight && (

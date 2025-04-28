@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { Header } from '@/components/custom/header'
 import { Footer } from '@/components/custom/footer'
 import { ThemeProvider } from '@/components/provider/theme-provider'
+import { ScrollToTopButton } from '@/components/custom/scroll-to-top-button' // <-- import here
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -51,6 +52,9 @@ export default function RootLayout({
             </main>
             <Footer />
           </div>
+
+          {/* Insert Scroll To Top Button */}
+          <ScrollToTopButton />
 
           <Toaster
             position='top-right'

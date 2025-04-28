@@ -1,27 +1,17 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { formatDateTime } from '@/utils/date'
-import type { DeviceData, Warning } from '@/types/device'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+'use client';
 
-const thresholds = {
-    temperature: { low: 22, high: 28, unit: '°C' },
-    humidity: { low: 40, high: 60, unit: '%' },
-    pm25: { low: 0, high: 4, unit: 'µg/m³' },
-    voc: { low: 0, high: 0.05, unit: 'ppm' },
-    o3: { low: 0, high: 0.3, unit: 'ppm' },
-    co: { low: 0, high: 8.73, unit: 'ppm' },
-    co2: { low: 0, high: 500, unit: 'ppm' },
-    no2: { low: 0, high: 5, unit: 'ppm' },
-    so2: { low: 0, high: 5, unit: 'ppm' }
-}
+import { useState, useEffect, useMemo } from 'react';
+import { thresholds } from '@/utils/device';
+import { formatDateTime } from '@/utils/date';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import type { DeviceData, Warning } from '@/types/device';
 
 const analyzeData = (data: DeviceData): Warning[] => {
-    const warnings: Warning[] = []
+    const warnings: Warning[] = [];
 
     if (!data || !data.timestamp || data.timestamp.length === 0) return warnings;
 
@@ -58,58 +48,76 @@ const filterWarningsByTime = (warnings: Warning[], timeframeMs: number) => {
     const now = Date.now();
     const cutoffTime = now - timeframeMs;
 
-    return warnings.filter(warning => {
+    return warnings.filter((warning) => {
         const warningTime = new Date(warning.timestamp).getTime();
         return warningTime >= cutoffTime;
     });
 };
 
-export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | null; warningHistory: Warning[] }) => {
-    const [showWarnings, setShowWarnings] = useState(true);
-    const [activeTab, setActiveTab] = useState<'recent' | 'all'>('recent');
-    const [detectedWarnings, setDetectedWarnings] = useState<Warning[]>([]);
-    const [activeWarnings, setActiveWarnings] = useState<Warning[]>([]);
-
-    useEffect(() => {
-        if (!data) return;
-
-        const warnings = analyzeData(data);
-        setDetectedWarnings(warnings);
-
-        const active: Warning[] = [];
-        if (data.timestamp.length > 0) {
-            const latestIdx = data.timestamp.length - 1;
-
-            Object.entries(thresholds).forEach(([key, threshold]) => {
-                const values = data[key as keyof DeviceData];
-                if (!Array.isArray(values)) return;
-
-                const latestValue = Number(values[latestIdx]);
-                if (isNaN(latestValue)) return;
-
-                if (latestValue > threshold.high) {
-                    active.push({
-                        title: `High ${key.toUpperCase()}`,
-                        message: `Current value: ${latestValue.toFixed(1)}${threshold.unit}`,
-                        timestamp: data.timestamp[latestIdx],
-                    });
-                } else if (latestValue < threshold.low && threshold.low > 0) {
-                    active.push({
-                        title: `Low ${key.toUpperCase()}`,
-                        message: `Current value: ${latestValue.toFixed(1)}${threshold.unit}`,
-                        timestamp: data.timestamp[latestIdx],
-                    });
-                }
-            });
+export const WarningsPanel = ({
+    data,
+    warningHistory,
+}: {
+    data: DeviceData | null;
+    warningHistory: Warning[];
+}) => {
+    const [showWarnings, setShowWarnings] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('warningsPanelExpanded');
+            return saved !== null ? JSON.parse(saved) : true;
         }
-        setActiveWarnings(active);
+        return true;
+    });
+    const [activeTab, setActiveTab] = useState<'recent' | 'all'>('recent');
+
+    const detectedWarnings = useMemo(() => (data ? analyzeData(data) : []), [data]);
+    const activeWarnings = useMemo(() => {
+        if (!data || data.timestamp.length === 0) return [];
+
+        const latestIdx = data.timestamp.length - 1;
+        const active: Warning[] = [];
+
+        Object.entries(thresholds).forEach(([key, threshold]) => {
+            const values = data[key as keyof DeviceData];
+            if (!Array.isArray(values)) return;
+
+            const latestValue = Number(values[latestIdx]);
+            if (isNaN(latestValue)) return;
+
+            if (latestValue > threshold.high) {
+                active.push({
+                    title: `High ${key.toUpperCase()}`,
+                    message: `Current value: ${latestValue.toFixed(1)}${threshold.unit}`,
+                    timestamp: data.timestamp[latestIdx],
+                });
+            } else if (latestValue < threshold.low && threshold.low > 0) {
+                active.push({
+                    title: `Low ${key.toUpperCase()}`,
+                    message: `Current value: ${latestValue.toFixed(1)}${threshold.unit}`,
+                    timestamp: data.timestamp[latestIdx],
+                });
+            }
+        });
+
+        return active;
     }, [data]);
 
-    const combinedWarnings = [...detectedWarnings, ...warningHistory].sort((a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    useEffect(() => {
+        localStorage.setItem('warningsPanelExpanded', JSON.stringify(showWarnings));
+    }, [showWarnings]);
+
+    const combinedWarnings = useMemo(
+        () => [...detectedWarnings, ...warningHistory].sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ),
+        [detectedWarnings, warningHistory]
     );
 
-    const recentWarnings = filterWarningsByTime(combinedWarnings, 24 * 3600 * 1000);
+    const recentWarnings = useMemo(
+        () => filterWarningsByTime(combinedWarnings, 24 * 3600 * 1000),
+        [combinedWarnings]
+    );
+
     const displayWarnings = activeTab === 'recent' ? recentWarnings : combinedWarnings;
 
     return (
@@ -119,9 +127,7 @@ export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | nul
                     <AlertTriangle className="h-5 w-5 text-destructive" />
                     <h2 className="font-semibold">Threshold Alerts</h2>
                     {activeWarnings.length > 0 && (
-                        <Badge variant="destructive">
-                            {activeWarnings.length} Active
-                        </Badge>
+                        <Badge variant="destructive">{activeWarnings.length} Active</Badge>
                     )}
                 </div>
                 <Button
@@ -129,7 +135,11 @@ export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | nul
                     size="sm"
                     onClick={() => setShowWarnings(!showWarnings)}
                 >
-                    {showWarnings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {showWarnings ? (
+                        <ChevronUp className="h-4 w-4" />
+                    ) : (
+                        <ChevronDown className="h-4 w-4" />
+                    )}
                 </Button>
             </div>
 
@@ -152,14 +162,14 @@ export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | nul
                         <div className="flex space-x-2">
                             <Button
                                 size="sm"
-                                variant={activeTab === 'recent' ? "default" : "outline"}
+                                variant={activeTab === 'recent' ? 'default' : 'outline'}
                                 onClick={() => setActiveTab('recent')}
                             >
                                 Recent (24h)
                             </Button>
                             <Button
                                 size="sm"
-                                variant={activeTab === 'all' ? "default" : "outline"}
+                                variant={activeTab === 'all' ? 'default' : 'outline'}
                                 onClick={() => setActiveTab('all')}
                             >
                                 All Time
@@ -179,7 +189,9 @@ export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | nul
                                                     <AlertTriangle className="h-3 w-3 text-destructive" />
                                                     <p className="font-medium">{warning.title}</p>
                                                 </div>
-                                                <p className="text-muted-foreground">{warning.message}</p>
+                                                <p className="text-muted-foreground">
+                                                    {warning.message}
+                                                </p>
                                             </div>
                                             <p className="text-xs text-muted-foreground">
                                                 {formatDateTime(warning.timestamp)}
@@ -197,5 +209,5 @@ export const WarningsPanel = ({ data, warningHistory }: { data: DeviceData | nul
                 </div>
             )}
         </div>
-    )
+    );
 };

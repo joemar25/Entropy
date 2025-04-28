@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 import { watch } from 'fs';
 import type { NextRequest } from 'next/server';
 import type { DeviceData } from '@/types/device';
+import { debounce } from 'lodash';
 
 interface Reading {
     'CO (ppm)': number;
@@ -24,6 +25,7 @@ const USE_REALTIME = process.env.NEXT_PUBLIC_USE_REALTIME;
 let jsonReadings: Reading[] = [];
 let dummyReadings: Reading[] = [];
 let lastModified: number | null = null;
+const syntheticDataCache: Map<string, DeviceData> = new Map();
 
 function generateDummyReading(timestamp: string): Reading {
     return {
@@ -79,6 +81,7 @@ async function getJsonReadings(): Promise<Reading[]> {
             try {
                 jsonReadings = JSON.parse(fileContent) as Reading[];
                 lastModified = modified;
+                syntheticDataCache.clear(); // Clear cache on file change
             } catch (parseError) {
                 console.error('Error parsing readings.json:', parseError);
                 jsonReadings = [];
@@ -116,9 +119,10 @@ async function getDummyRealtimeReadings(): Promise<Reading[]> {
 function watchReadingsFile() {
     const filePath = path.join(process.cwd(), 'src', 'data', 'readings.json');
     if (existsSync(filePath)) {
+        const debouncedGetJsonReadings = debounce(getJsonReadings, 500);
         watch(filePath, async (event) => {
             if (event === 'change') {
-                await getJsonReadings();
+                await debouncedGetJsonReadings();
             }
         });
     }
@@ -142,7 +146,7 @@ async function getAllReadings(): Promise<Reading[]> {
         return dummyReadings;
     }
 
-    if (USE_DUMMY_JSON) {
+    if (USE_DUMMY_JSON || USE_REALTIME) {
         const readings = await getJsonReadings();
         if (!readings.length) {
             return [generateDummyReading(new Date().toISOString())];
@@ -150,14 +154,15 @@ async function getAllReadings(): Promise<Reading[]> {
         return readings;
     }
 
-    if (USE_REALTIME) {
-        return getJsonReadings();
-    }
-
     return getJsonReadings();
 }
 
 function convertReadingsToDeviceData(readings: Reading[]): DeviceData {
+    const cacheKey = readings.map(r => r.timestamp).join('|');
+    if (syntheticDataCache.has(cacheKey)) {
+        return syntheticDataCache.get(cacheKey)!;
+    }
+
     const deviceData: DeviceData = {
         temperature: [],
         humidity: [],
@@ -187,6 +192,7 @@ function convertReadingsToDeviceData(readings: Reading[]): DeviceData {
         deviceData.timestamp.push(reading.timestamp);
     });
 
+    syntheticDataCache.set(cacheKey, deviceData);
     return deviceData;
 }
 

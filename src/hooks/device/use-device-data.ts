@@ -1,33 +1,26 @@
-// src/hooks/device/use-device-data.ts
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDeviceCode } from './use-device-code';
 import { toast } from 'sonner';
 import type { DeviceData } from '@/types/device';
-
-// Debounce utility with proper typing
-function debounce<T extends (...args: Parameters<T>) => void>(func: T, wait: number) {
-    let timeout: NodeJS.Timeout;
-    return (...args: Parameters<T>) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
-}
+import { debounce } from 'lodash';
 
 export const useDeviceData = () => {
     const { deviceCode, isAuthenticated } = useDeviceCode();
     const [data, setData] = useState<DeviceData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoading, setIsInitialLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [timeFilter, setTimeFilter] = useState('10');
-    const latestDataRef = useRef<DeviceData | null>(null); // Track latest data for comparison
+    const latestDataRef = useRef<DeviceData | null>(null);
+    const wsRef = useRef<WebSocket | null>(null);
+    const reconnectAttempts = useRef(0);
+    const maxReconnectAttempts = 5;
 
-    // Core fetch logic
     const fetchDataImpl = useCallback(async () => {
         if (!deviceCode || !isAuthenticated) {
-            setIsLoading(false);
+            setIsInitialLoading(false);
             return;
         }
 
@@ -50,18 +43,16 @@ export const useDeviceData = () => {
 
             const deviceData: DeviceData = await response.json();
 
-            // Validate data
             if (!deviceData.temperature || !deviceData.humidity || !deviceData.timestamp) {
                 throw new Error('Invalid data format received');
             }
 
-            // Compare key metrics with a threshold
             const hasSignificantChange = (newData: DeviceData, oldData: DeviceData | null) => {
                 if (!oldData) return true;
                 const thresholds = {
-                    temperature: 0.5, // °C
-                    humidity: 2, // %
-                    pm25: 1, // µg/m³
+                    temperature: 0.5,
+                    humidity: 2,
+                    pm25: 1,
                 };
                 const latestNew = {
                     temperature: newData.temperature[newData.temperature.length - 1],
@@ -80,7 +71,6 @@ export const useDeviceData = () => {
                 );
             };
 
-            // Only update if data has changed significantly
             if (hasSignificantChange(deviceData, latestDataRef.current)) {
                 setData(deviceData);
                 latestDataRef.current = deviceData;
@@ -92,65 +82,110 @@ export const useDeviceData = () => {
             setError(err instanceof Error ? err.message : 'Failed to fetch device data');
             toast.error('Failed to fetch device data');
         } finally {
-            setIsLoading(false);
+            setIsInitialLoading(false);
         }
     }, [deviceCode, isAuthenticated, timeFilter]);
 
-    // Debounced fetch function
-    const debouncedFetchData = useRef(debounce(fetchDataImpl, 1000)).current;
+    const debouncedFetchData = useRef(debounce(fetchDataImpl, 500)).current;
 
-    useEffect(() => {
-        if (!isAuthenticated || !deviceCode) {
-            setIsLoading(false);
+    const connectWebSocket = useCallback(() => {
+        if (!process.env.NEXT_PUBLIC_WS_ENDPOINT || !deviceCode || !isAuthenticated) {
             return;
         }
 
-        // Initial fetch
-        debouncedFetchData();
+        wsRef.current = new WebSocket(`${process.env.NEXT_PUBLIC_WS_ENDPOINT}?deviceCode=${deviceCode}`);
 
-        // Polling for real-time updates
-        const interval = setInterval(() => debouncedFetchData(), 5000); // 5 seconds to match backend
+        wsRef.current.onopen = () => {
+            reconnectAttempts.current = 0;
+            setError(null);
+        };
 
-        // Placeholder for future WebSocket/SSE
-        const ws: WebSocket | null = process.env.NEXT_PUBLIC_WS_ENDPOINT
-            ? new WebSocket(`${process.env.NEXT_PUBLIC_WS_ENDPOINT}?deviceCode=${deviceCode}`)
-            : null;
-
-        if (ws) {
-            ws.onmessage = (event) => {
-                const newData = JSON.parse(event.data) as DeviceData;
-                setData(newData);
-                latestDataRef.current = newData;
+        wsRef.current.onmessage = (event) => {
+            const newData = JSON.parse(event.data) as DeviceData;
+            if (
+                newData.temperature &&
+                newData.humidity &&
+                newData.timestamp &&
+                latestDataRef.current
+            ) {
+                const mergedData: DeviceData = {
+                    ...latestDataRef.current,
+                    temperature: [
+                        ...latestDataRef.current.temperature,
+                        ...newData.temperature,
+                    ].slice(-100),
+                    humidity: [
+                        ...latestDataRef.current.humidity,
+                        ...newData.humidity,
+                    ].slice(-100),
+                    pm25: [...latestDataRef.current.pm25, ...newData.pm25].slice(-100),
+                    voc: [...latestDataRef.current.voc, ...newData.voc].slice(-100),
+                    o3: [...latestDataRef.current.o3, ...newData.o3].slice(-100),
+                    co: [...latestDataRef.current.co, ...newData.co].slice(-100),
+                    co2: [...latestDataRef.current.co2, ...newData.co2].slice(-100),
+                    no2: [...latestDataRef.current.no2, ...newData.no2].slice(-100),
+                    so2: [...latestDataRef.current.so2, ...newData.so2].slice(-100),
+                    timestamp: [
+                        ...latestDataRef.current.timestamp,
+                        ...newData.timestamp,
+                    ].slice(-100),
+                };
+                setData(mergedData);
+                latestDataRef.current = mergedData;
                 setLastUpdated(new Date());
                 setError(null);
-            };
-            ws.onerror = () => {
-                setError('WebSocket connection failed');
-                toast.error('Real-time updates unavailable');
-            };
+            }
+        };
+
+        wsRef.current.onerror = () => {
+            setError('WebSocket connection failed');
+            toast.error('Real-time updates unavailable');
+        };
+
+        wsRef.current.onclose = () => {
+            if (reconnectAttempts.current < maxReconnectAttempts) {
+                setTimeout(() => {
+                    reconnectAttempts.current += 1;
+                    connectWebSocket();
+                }, 1000 * Math.pow(2, reconnectAttempts.current));
+            } else {
+                setError('Max WebSocket reconnection attempts reached');
+                toast.error('Real-time updates disabled');
+            }
+        };
+    }, [deviceCode, isAuthenticated]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !deviceCode) {
+            setIsInitialLoading(false);
+            return;
         }
+
+        debouncedFetchData();
+        const interval = setInterval(debouncedFetchData, 5000);
+
+        connectWebSocket();
 
         return () => {
             clearInterval(interval);
-            if (ws) {
-                ws.close();
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
             }
         };
-    }, [deviceCode, isAuthenticated, debouncedFetchData]);
+    }, [deviceCode, isAuthenticated, debouncedFetchData, connectWebSocket]);
 
     const refreshData = useCallback(() => {
-        setIsLoading(true);
         debouncedFetchData();
     }, [debouncedFetchData]);
 
     const updateTimeFilter = useCallback((newFilter: string) => {
         setTimeFilter(newFilter);
-        setIsLoading(true);
     }, []);
 
     return {
         data,
-        isLoading,
+        isInitialLoading,
         error,
         lastUpdated,
         refreshData,

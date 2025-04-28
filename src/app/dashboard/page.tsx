@@ -1,4 +1,3 @@
-// src/app/dashboard/page.tsx
 'use client';
 
 import { useRouter } from 'next/navigation';
@@ -6,7 +5,6 @@ import { formatDateTime } from '@/utils/date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { getWarnings, thresholds } from '@/utils/device';
 import { useDeviceCode } from '@/hooks/device/use-device-code';
 import { useDeviceData } from '@/hooks/device/use-device-data';
@@ -18,7 +16,6 @@ import { LoadingState } from '@/components/custom/dashboard/status/loading';
 import { FilterToolbar } from '@/components/custom/dashboard/filter-toolbar';
 import { WarningsPanel } from '@/components/custom/dashboard/warnings-panel';
 import { DashboardAreaChart } from '@/components/custom/dashboard/area-chart';
-
 import type { ChartDataPoint, DeviceData, Warning } from '@/types/device';
 
 const timeFilters = [
@@ -35,7 +32,7 @@ export default function Dashboard() {
     const { deviceCode } = useDeviceCode();
     const {
         data,
-        isLoading,
+        isInitialLoading,
         error,
         refreshData,
         timeFilter,
@@ -56,21 +53,8 @@ export default function Dashboard() {
         'so2',
     ]);
 
-    // Compute a stable animation key based on significant data changes
-    const animationKey = useMemo(() => {
-        if (!data || !data.timestamp.length) return '';
-        const latestTimestamp = data.timestamp[data.timestamp.length - 1];
-        const latestValues = {
-            temperature: data.temperature[data.temperature.length - 1],
-            humidity: data.humidity[data.humidity.length - 1],
-            pm25: data.pm25[data.pm25.length - 1],
-        };
-        // Round values to reduce sensitivity to minor changes
-        return `${latestTimestamp}-${Math.round(latestValues.temperature * 10)}-${Math.round(latestValues.humidity * 10)}-${Math.round(latestValues.pm25 * 10)}`;
-    }, [data]);
-
-    useEffect(() => {
-        if (!data) return;
+    const processChartData = useMemo(() => {
+        if (!data) return [];
 
         try {
             let filteredData = [...(data.temperature || []).map((temp, index) => ({
@@ -112,55 +96,62 @@ export default function Dashboard() {
                     break;
             }
 
-            setChartData(
-                filteredData.map((point) => ({
-                    time: formatDateTime(point.timestamp),
-                    temperature: Number(point.temperature.toFixed(1)),
-                    humidity: Number(point.humidity.toFixed(1)),
-                    pm25: Number(point.pm25.toFixed(1)),
-                    voc: Number(point.voc.toFixed(1)),
-                    o3: Number(point.o3.toFixed(1)),
-                    co: Number(point.co.toFixed(1)),
-                    co2: Number(point.co2.toFixed(1)),
-                    no2: Number(point.no2.toFixed(1)),
-                    so2: Number(point.so2.toFixed(1)),
-                }))
-            );
-
-            const twentyFourHoursAgo = now - 24 * 3600 * 1000;
-            const filteredIndices = data.timestamp
-                .map((ts, index) => (new Date(ts).getTime() >= twentyFourHoursAgo ? index : -1))
-                .filter((index) => index !== -1);
-
-            const dataLast24h = {
-                ...data,
-                timestamp: filteredIndices.map((i) => data.timestamp[i]),
-                temperature: filteredIndices.map((i) => data.temperature[i]),
-                humidity: filteredIndices.map((i) => data.humidity[i]),
-                pm25: filteredIndices.map((i) => data.pm25[i]),
-                voc: filteredIndices.map((i) => data.voc[i]),
-                o3: filteredIndices.map((i) => data.o3[i]),
-                co: filteredIndices.map((i) => data.co[i]),
-                co2: filteredIndices.map((i) => data.co2[i]),
-                no2: filteredIndices.map((i) => data.no2[i]),
-                so2: filteredIndices.map((i) => data.so2[i]),
-            };
-
-            const currentWarnings = getWarnings(dataLast24h);
-            if (currentWarnings.length > 0) {
-                const newWarnings = currentWarnings.map((warning) => ({
-                    ...warning,
-                    timestamp: new Date().toISOString(),
-                }));
-                setWarningHistory((prev) => [
-                    ...prev.filter((w) => new Date(w.timestamp) > new Date(twentyFourHoursAgo)),
-                    ...newWarnings,
-                ]);
-            }
+            return filteredData.map((point) => ({
+                time: formatDateTime(point.timestamp),
+                temperature: Number(point.temperature.toFixed(1)),
+                humidity: Number(point.humidity.toFixed(1)),
+                pm25: Number(point.pm25.toFixed(1)),
+                voc: Number(point.voc.toFixed(1)),
+                o3: Number(point.o3.toFixed(1)),
+                co: Number(point.co.toFixed(1)),
+                co2: Number(point.co2.toFixed(1)),
+                no2: Number(point.no2.toFixed(1)),
+                so2: Number(point.so2.toFixed(1)),
+            }));
         } catch (error) {
-            console.error('Error processing data:', error);
+            console.error('Error processing chart data:', error);
+            return [];
         }
     }, [data, timeFilter]);
+
+    useEffect(() => {
+        setChartData(processChartData);
+    }, [processChartData]);
+
+    useEffect(() => {
+        if (!data) return;
+
+        const twentyFourHoursAgo = Date.now() - 24 * 3600 * 1000;
+        const filteredIndices = data.timestamp
+            .map((ts, index) => (new Date(ts).getTime() >= twentyFourHoursAgo ? index : -1))
+            .filter((index) => index !== -1);
+
+        const dataLast24h = {
+            ...data,
+            timestamp: filteredIndices.map((i) => data.timestamp[i]),
+            temperature: filteredIndices.map((i) => data.temperature[i]),
+            humidity: filteredIndices.map((i) => data.humidity[i]),
+            pm25: filteredIndices.map((i) => data.pm25[i]),
+            voc: filteredIndices.map((i) => data.voc[i]),
+            o3: filteredIndices.map((i) => data.o3[i]),
+            co: filteredIndices.map((i) => data.co[i]),
+            co2: filteredIndices.map((i) => data.co2[i]),
+            no2: filteredIndices.map((i) => data.no2[i]),
+            so2: filteredIndices.map((i) => data.so2[i]),
+        };
+
+        const currentWarnings = getWarnings(dataLast24h);
+        if (currentWarnings.length > 0) {
+            const newWarnings = currentWarnings.map((warning) => ({
+                ...warning,
+                timestamp: new Date().toISOString(),
+            }));
+            setWarningHistory((prev) => [
+                ...prev.filter((w) => new Date(w.timestamp) > new Date(twentyFourHoursAgo)),
+                ...newWarnings,
+            ]);
+        }
+    }, [data]);
 
     const getStatusBadge = (value: number, type: keyof typeof thresholds) => {
         const threshold = thresholds[type];
@@ -199,7 +190,7 @@ export default function Dashboard() {
         }
     }, [deviceCode, router]);
 
-    if (!deviceCode || isLoading) {
+    if (isInitialLoading && !data) {
         return <LoadingState />;
     }
 
@@ -220,53 +211,50 @@ export default function Dashboard() {
             </div>
 
             {data && (
-                <AnimatePresence>
-                    <motion.div
-                        key={animationKey}
-                        initial={{ opacity: 0.8, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0.8, y: -10 }}
-                        transition={{ duration: 0.3 }}
-                        className="space-y-6"
-                    >
-                        <FilterToolbar
-                            timeFilter={timeFilter}
-                            setTimeFilter={updateTimeFilter}
-                            timeFilters={timeFilters}
-                            availableMetrics={availableMetrics}
-                            selectedMetrics={selectedMetrics}
-                            onMetricToggle={handleMetricToggle}
-                        />
+                <div className="space-y-6">
+                    <FilterToolbar
+                        timeFilter={timeFilter}
+                        setTimeFilter={updateTimeFilter}
+                        timeFilters={timeFilters}
+                        availableMetrics={availableMetrics}
+                        selectedMetrics={selectedMetrics}
+                        onMetricToggle={handleMetricToggle}
+                    />
 
-                        {hasWarnings && (
-                            <WarningsPanel data={data} warningHistory={warningHistory} />
-                        )}
+                    {hasWarnings && (
+                        <WarningsPanel data={data} warningHistory={warningHistory} />
+                    )}
 
-                        <DashboardChart
-                            data={chartData}
-                            timeFilter={timeFilter}
-                            onTimeFilterChangeAction={updateTimeFilter}
-                            timeFilters={timeFilters}
-                            selectedMetrics={selectedMetrics}
-                            onRefresh={refreshData}
-                        />
+                    <DashboardChart
+                        data={chartData}
+                        timeFilter={timeFilter}
+                        onTimeFilterChangeAction={updateTimeFilter}
+                        timeFilters={timeFilters}
+                        selectedMetrics={selectedMetrics}
+                        onRefresh={refreshData}
+                    />
 
-                        <DashboardBarChart data={chartData} selectedMetrics={selectedMetrics} />
+                    <DashboardBarChart
+                        data={chartData}
+                        selectedMetrics={selectedMetrics}
+                        onRefresh={refreshData}
+                    />
 
-                        <DashboardAreaChart
-                            data={chartData}
-                            selectedMetrics={selectedMetrics}
-                        />
+                    <DashboardAreaChart
+                        data={chartData}
+                        onRefresh={refreshData}
+                        selectedMetrics={selectedMetrics}
+                    />
 
-                        <MetricsGrid
-                            data={data}
-                            getCurrentValueAction={getCurrentValue}
-                            getStatusBadgeAction={getStatusBadge}
-                            onRefresh={refreshData}
-                            selectedMetrics={selectedMetrics}
-                        />
-                    </motion.div>
-                </AnimatePresence>
+                    <MetricsGrid
+                        data={data}
+                        getCurrentValueAction={getCurrentValue}
+                        getStatusBadgeAction={getStatusBadge}
+                        onRefresh={refreshData}
+                        selectedMetrics={selectedMetrics}
+                        timeFilter={timeFilter}
+                    />
+                </div>
             )}
         </div>
     );

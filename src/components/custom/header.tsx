@@ -2,16 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { HomeIcon, Users, LayoutDashboard, LogOut } from 'lucide-react'
+import { HomeIcon, Users, LayoutDashboard, LogOut, Maximize2, Minimize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { ThemeChange } from './theme/theme-change'
 import { useDeviceCode } from '@/hooks/device/use-device-code'
+import { useState } from 'react'
 
 export function Header() {
     const pathname = usePathname()
     const { deviceCode, clearDeviceCode } = useDeviceCode()
+    const [isFullscreen, setIsFullscreen] = useState(false)
 
     const navItems = [
         ...(deviceCode
@@ -19,27 +21,38 @@ export function Header() {
                 {
                     name: 'Dashboard',
                     path: '/dashboard',
-                    icon: <LayoutDashboard className='w-4 h-4' />
-                }
+                    icon: <LayoutDashboard className='w-4 h-4' />,
+                },
             ]
             : [
                 {
                     name: 'Home',
                     path: '/',
-                    icon: <HomeIcon className='w-4 h-4' />
-                }
-            ]
-        ),
+                    icon: <HomeIcon className='w-4 h-4' />,
+                },
+            ]),
         {
             name: 'About',
             path: '/about',
-            icon: <Users className='w-4 h-4' />
-        }
+            icon: <Users className='w-4 h-4' />,
+        },
     ]
 
     const handleLogout = () => {
         clearDeviceCode()
         toast.success('Successfully logged out')
+    }
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch((err) => {
+                console.error(`Error attempting to enable fullscreen mode: ${err.message} (${err.name})`)
+            })
+            setIsFullscreen(true)
+        } else {
+            document.exitFullscreen()
+            setIsFullscreen(false)
+        }
     }
 
     return (
@@ -75,11 +88,26 @@ export function Header() {
                 ))}
             </div>
             <div className='flex items-center gap-2'>
+                {/* Fullscreen toggle button */}
+                <Button
+                    variant='ghost'
+                    size='icon'
+                    onClick={toggleFullscreen}
+                    aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                >
+                    {isFullscreen ? (
+                        <Minimize2 className='h-4 w-4' />
+                    ) : (
+                        <Maximize2 className='h-4 w-4' />
+                    )}
+                </Button>
+
                 {deviceCode && (
                     <Button
                         variant='ghost'
                         size='icon'
                         onClick={handleLogout}
+                        aria-label='Logout'
                     >
                         <LogOut className='h-4 w-4' />
                     </Button>
@@ -88,4 +116,4 @@ export function Header() {
             </div>
         </header>
     )
-} 
+}
