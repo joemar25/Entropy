@@ -7,6 +7,7 @@ import { styles } from '@/utils/styles';
 import { metrics } from '@/constants/metric';
 import { useState, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceArea, CartesianGrid, Legend } from 'recharts';
+import { formatDateTime } from '@/utils/date';
 
 interface ZoomEvent {
     activeLabel?: string;
@@ -47,6 +48,10 @@ export function DashboardChart({
         bottom: 'dataMin',
         animation: true,
     });
+
+    // Limit data to 100 points
+    const limitedData = data.slice(-100);
+    const isDataLimited = data.length > 100;
 
     const handleZoomStart = useCallback((event: ZoomEvent) => {
         const label = event?.activeLabel;
@@ -89,10 +94,10 @@ export function DashboardChart({
     }, [zoomState]);
 
     return (
-        <ChartCard title="Real-time Monitoring" dataLength={data.length} onRefresh={onRefresh}>
+        <ChartCard title="Real-time Monitoring" dataLength={limitedData.length} onRefresh={onRefresh}>
             <ResponsiveContainer width="100%" height={400}>
                 <LineChart
-                    data={data}
+                    data={limitedData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 70 }}
                     onMouseDown={handleZoomStart}
                     onMouseMove={handleZoomMove}
@@ -109,6 +114,7 @@ export function DashboardChart({
                         interval="preserveStartEnd"
                         tick={{ fill: '#888888' }}
                         domain={[zoomState.left, zoomState.right]}
+                        tickFormatter={(tick) => formatDateTime(tick, isDataLimited)}
                     />
                     <YAxis yAxisId="left" orientation="left" stroke="#888888" tick={{ fill: '#888888' }} />
                     <Tooltip content={<CustomTooltip />} />

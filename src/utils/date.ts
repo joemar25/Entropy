@@ -1,26 +1,26 @@
 // src/utils/date.ts
-export function formatDateTime(isoString: string): string {
-    try {
-        const date = new Date(isoString);
-
-        if (isNaN(date.getTime())) {
-            return "Invalid date";
-        }
-
-        // Use actual date from the timestamp
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
+export function formatDateTime(isoString: string, timeOnly: boolean = false): string {
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+    }
+    if (timeOnly) {
+        return date.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
-            hour12: true
+            hour12: false,
         });
-    } catch (error) {
-        console.error('Error formatting date:', error);
-        return 'Invalid date';
     }
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).replace(',', '');
 }
 
 // Format for shorter time display

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDeviceCode } from './use-device-code';
 import { toast } from 'sonner';
 import type { DeviceData } from '@/types/device';
@@ -86,7 +86,8 @@ export const useDeviceData = () => {
         }
     }, [deviceCode, isAuthenticated, timeFilter]);
 
-    const debouncedFetchData = useRef(debounce(fetchDataImpl, 500)).current;
+    // Recreate debounced function when fetchDataImpl changes
+    const debouncedFetchData = useMemo(() => debounce(fetchDataImpl, 500), [fetchDataImpl]);
 
     const connectWebSocket = useCallback(() => {
         if (!process.env.NEXT_PUBLIC_WS_ENDPOINT || !deviceCode || !isAuthenticated) {
@@ -168,12 +169,18 @@ export const useDeviceData = () => {
 
         return () => {
             clearInterval(interval);
+            debouncedFetchData.cancel(); // Cancel any pending debounced calls
             if (wsRef.current) {
                 wsRef.current.close();
                 wsRef.current = null;
             }
         };
     }, [deviceCode, isAuthenticated, debouncedFetchData, connectWebSocket]);
+
+    useEffect(() => {
+        // Fetch data immediately when timeFilter changes
+        debouncedFetchData();
+    }, [timeFilter, debouncedFetchData]);
 
     const refreshData = useCallback(() => {
         debouncedFetchData();

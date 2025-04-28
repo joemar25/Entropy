@@ -27,11 +27,11 @@
 }
 
 .tooltipDot--temperature {
-  @apply bg-[#06b6d4];
+  @apply bg-[#3b82f6];
 }
 
 .tooltipDot--humidity {
-  @apply bg-[#8b5cf6];
+  @apply bg-[#10b981];
 }
 
 .tooltipDot--pm25 {
@@ -43,15 +43,15 @@
 }
 
 .tooltipDot--o3 {
-  @apply bg-[#10b981];
+  @apply bg-[#8b5cf6];
 }
 
 .tooltipDot--co {
-  @apply bg-[#6366f1];
+  @apply bg-[#ec4899];
 }
 
 .tooltipDot--co2 {
-  @apply bg-[#ec4899];
+  @apply bg-[#6b7280];
 }
 
 .tooltipDot--no2 {
@@ -76,4 +76,20 @@
 
 .chartLine:hover {
   @apply stroke-[3px];
+}
+
+.legendTooltip {
+  @apply rounded-lg border bg-background p-2 shadow-sm z-50 absolute;
+}
+
+.legendTooltip[data-x][data-y] {
+  transform: translate(calc(attr(data-x px)), calc(attr(data-y px)));
+}
+
+.legendContainer {
+  @apply flex flex-wrap justify-center gap-4 pb-5 text-xs;
+}
+
+.chartWrapper {
+  @apply relative;
 }

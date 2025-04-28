@@ -16,6 +16,7 @@ import { LoadingState } from '@/components/custom/dashboard/status/loading';
 import { FilterToolbar } from '@/components/custom/dashboard/filter-toolbar';
 import { WarningsPanel } from '@/components/custom/dashboard/warnings-panel';
 import { DashboardAreaChart } from '@/components/custom/dashboard/area-chart';
+import { useDownloadData } from '@/hooks/device/use-download-data';
 import type { ChartDataPoint, DeviceData, Warning } from '@/types/device';
 
 const timeFilters = [
@@ -26,6 +27,11 @@ const timeFilters = [
     { value: '24h', label: 'Last 24 hours' },
     { value: 'all', label: 'All readings' },
 ];
+
+interface Metric {
+    value: string;
+    label: string;
+}
 
 export default function Dashboard() {
     const router = useRouter();
@@ -52,6 +58,33 @@ export default function Dashboard() {
         'no2',
         'so2',
     ]);
+
+    const availableMetrics: Metric[] = [
+        { value: 'temperature', label: 'Temperature (°C)' },
+        { value: 'humidity', label: 'Humidity (%)' },
+        { value: 'pm25', label: 'PM2.5 (µg/m³)' },
+        { value: 'voc', label: 'VOC (ppm)' },
+        { value: 'o3', label: 'Ozone (O₃) (ppm)' },
+        { value: 'co', label: 'Carbon Monoxide (CO) (ppm)' },
+        { value: 'co2', label: 'Carbon Dioxide (CO₂) (ppm)' },
+        { value: 'no2', label: 'Nitrogen Dioxide (NO₂) (ppm)' },
+        { value: 'so2', label: 'Sulfur Dioxide (SO₂) (ppm)' },
+    ];
+
+    const { setIsDownloadDialogOpen, DownloadDialog } = useDownloadData<ChartDataPoint>({
+        data: chartData,
+        metrics: availableMetrics,
+        selectedMetrics,
+        fileNamePrefix: 'air_quality_data',
+        getHeaders: (metrics: string[]) => [
+            'Timestamp',
+            ...metrics.map((metric: string) => availableMetrics.find((m) => m.value === metric)?.label || metric),
+        ],
+        getRow: (point: ChartDataPoint, metrics: string[]) => [
+            point.time,
+            ...metrics.map((metric: string) => point[metric as keyof ChartDataPoint] || 0),
+        ],
+    });
 
     const processChartData = useMemo(() => {
         if (!data) return [];
@@ -166,18 +199,6 @@ export default function Dashboard() {
         return typeof value === 'number' ? value : 0;
     };
 
-    const availableMetrics = [
-        { value: 'temperature', label: 'Temperature' },
-        { value: 'humidity', label: 'Humidity' },
-        { value: 'pm25', label: 'PM2.5' },
-        { value: 'voc', label: 'VOC' },
-        { value: 'o3', label: 'Ozone (O₃)' },
-        { value: 'co', label: 'Carbon Monoxide (CO)' },
-        { value: 'co2', label: 'Carbon Dioxide (CO₂)' },
-        { value: 'no2', label: 'Nitrogen Dioxide (NO₂)' },
-        { value: 'so2', label: 'Sulfur Dioxide (SO₂)' },
-    ];
-
     const handleMetricToggle = (metric: string) => {
         setSelectedMetrics((prev) =>
             prev.includes(metric) ? prev.filter((m) => m !== metric) : [...prev, metric]
@@ -205,10 +226,21 @@ export default function Dashboard() {
         <div className="space-y-6 p-8">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold">Air Quality Dashboard</h1>
-                <Button variant="outline" size="sm" onClick={refreshData}>
-                    Refresh Data
-                </Button>
+                <div className="space-x-2">
+                    <Button variant="outline" size="sm" onClick={refreshData}>
+                        Refresh Data
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsDownloadDialogOpen(true)}
+                    >
+                        Download Data
+                    </Button>
+                </div>
             </div>
+
+            <DownloadDialog />
 
             {data && (
                 <div className="space-y-6">
