@@ -36,7 +36,7 @@ export function formatTimeShort(isoString: string): string {
             minute: '2-digit',
             hour12: false
         });
-    } catch (error) {
+    } catch {
         return '';
     }
 }
@@ -63,7 +63,7 @@ export function formatChartLabel(dateTimeString: string): string {
             minute: '2-digit',
             hour12: true
         });
-    } catch (error) {
+    } catch {
         return dateTimeString;
     }
 }
