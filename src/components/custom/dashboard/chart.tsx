@@ -35,9 +35,6 @@ interface ZoomState {
 
 export function DashboardChart({
     data,
-    timeFilter,
-    onTimeFilterChangeAction,
-    timeFilters,
     selectedMetrics = [],
     onRefresh,
 }: ChartProps) {
@@ -101,23 +98,6 @@ export function DashboardChart({
             onToggleExpand={() => setIsExpanded(!isExpanded)}
             onRefresh={onRefresh}
         >
-            <div className="mb-4">
-                <label htmlFor="time-filter-select" className="text-sm font-medium mr-2">
-                    Time Range
-                </label>
-                <select
-                    id="time-filter-select"
-                    value={timeFilter}
-                    onChange={(e) => onTimeFilterChangeAction(e.target.value)}
-                    className="w-[180px] border rounded p-2 text-sm"
-                >
-                    {timeFilters.map((filter) => (
-                        <option key={filter.value} value={filter.value}>
-                            {filter.label}
-                        </option>
-                    ))}
-                </select>
-            </div>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                     data={data}

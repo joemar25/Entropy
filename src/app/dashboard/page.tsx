@@ -1,24 +1,25 @@
 // src/app/dashboard/page.tsx
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { formatDateTime } from '@/utils/date';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDateTime } from '@/utils/date';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { getWarnings, thresholds } from '@/utils/device';
 import { useDeviceCode } from '@/hooks/device/use-device-code';
 import { useDeviceData } from '@/hooks/device/use-device-data';
 import { DashboardChart } from '@/components/custom/dashboard/chart';
+import { ErrorState } from '@/components/custom/dashboard/status/error';
 import { MetricsGrid } from '@/components/custom/dashboard/metrics-grid';
 import { DashboardBarChart } from '@/components/custom/dashboard/bar-chart';
-import { DashboardAreaChart } from '@/components/custom/dashboard/area-chart';
 import { LoadingState } from '@/components/custom/dashboard/status/loading';
-import { ErrorState } from '@/components/custom/dashboard/status/error';
-import { WarningsPanel } from '@/components/custom/dashboard/warnings-panel';
 import { FilterToolbar } from '@/components/custom/dashboard/filter-toolbar';
-import { getWarnings, thresholds } from '@/utils/device';
+import { WarningsPanel } from '@/components/custom/dashboard/warnings-panel';
+import { DashboardAreaChart } from '@/components/custom/dashboard/area-chart';
+
 import type { ChartDataPoint, DeviceData, Warning } from '@/types/device';
-import { AnimatePresence, motion } from 'framer-motion';
 
 const timeFilters = [
     { value: '10', label: 'Last 10 readings' },
