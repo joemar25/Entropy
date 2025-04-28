@@ -19,18 +19,21 @@ interface Reading {
 }
 
 // Configuration for data source
-const USE_DUMMY_REALTIME = true; // Set to false to use JSON file
-const USE_REALTIME = false; // Set to false for now
+const USE_DUMMY_REALTIME = true; // Set to false to disable dummy real-time data
+const USE_DUMMY_JSON = false; // Set to true to use dummy JSON data without appending
+const USE_REALTIME = false;
 
 // Validate environment configuration
 if (USE_DUMMY_REALTIME && USE_REALTIME) {
     console.warn('Both DUMMY_REALTIME and REALTIME are true. Prioritizing DUMMY_REALTIME.');
 }
+if (USE_DUMMY_REALTIME && USE_DUMMY_JSON) {
+    console.warn('Both DUMMY_REALTIME and DUMMY_JSON are true. Prioritizing DUMMY_REALTIME.');
+}
 
 // In-memory cache for JSON readings and dummy readings
 let jsonReadings: Reading[] = []; // Cache for readings.json
-// eslint-disable-next-line prefer-const
-let dummyReadings: Reading[] = []; // Cache for dummy data, mutated in updateDummyReadings
+let dummyReadings: Reading[] = []; // Cache for dummy data
 let lastModified: number | null = null;
 
 // Generate dummy real-time reading
@@ -47,7 +50,20 @@ function generateDummyReading(timestamp: string): Reading {
     };
 }
 
-// Simulate real-time updates by appending new dummy readings (in-memory only)
+// Write dummy readings to realtime.json
+async function writeDummyReadingsToFile() {
+    if (USE_DUMMY_REALTIME) {
+        const filePath = path.join(process.cwd(), 'src', 'data', 'realtime.json');
+        try {
+            await fs.writeFile(filePath, JSON.stringify(dummyReadings, null, 2), 'utf-8');
+            console.log('Updated realtime.json with dummy readings');
+        } catch (error) {
+            console.error('Error writing to realtime.json:', error);
+        }
+    }
+}
+
+// Simulate real-time updates by appending new dummy readings
 async function updateDummyReadings() {
     if (USE_DUMMY_REALTIME) {
         const now = new Date().toISOString();
@@ -57,7 +73,8 @@ async function updateDummyReadings() {
         if (dummyReadings.length > 100) {
             dummyReadings.shift();
         }
-        console.log('Generated new dummy reading (in-memory only):', newReading);
+        console.log('Generated new dummy reading:', newReading);
+        await writeDummyReadingsToFile(); // Write to realtime.json
     }
 }
 
@@ -67,8 +84,9 @@ async function getJsonReadings(): Promise<Reading[]> {
         const filePath = path.join(process.cwd(), 'src', 'data', 'readings.json');
 
         if (!existsSync(filePath)) {
-            console.warn('readings.json not found, initializing empty JSON cache');
+            console.warn('readings.json not found, initializing empty JSON file');
             jsonReadings = [];
+            await fs.writeFile(filePath, JSON.stringify(jsonReadings, null, 2), 'utf-8');
             return jsonReadings;
         }
 
@@ -78,9 +96,17 @@ async function getJsonReadings(): Promise<Reading[]> {
         // Only read file if it has changed or cache is empty
         if (jsonReadings.length === 0 || lastModified === null || modified > lastModified) {
             const fileContent = await fs.readFile(filePath, 'utf-8');
-            jsonReadings = JSON.parse(fileContent) as Reading[];
-            lastModified = modified;
-            console.log('Loaded readings from JSON (read-only):', jsonReadings.length);
+            try {
+                jsonReadings = JSON.parse(fileContent) as Reading[];
+                lastModified = modified;
+                console.log('Loaded readings from JSON (read-only):', jsonReadings.length);
+            } catch (parseError) {
+                console.error('Error parsing readings.json:', parseError);
+                console.error('Problematic JSON content:', fileContent.slice(0, 500), '...'); // Log first 500 chars
+                console.warn('Initializing new empty readings.json due to parsing failure');
+                jsonReadings = [];
+                await fs.writeFile(filePath, JSON.stringify(jsonReadings, null, 2), 'utf-8');
+            }
         }
 
         return jsonReadings;
@@ -88,6 +114,28 @@ async function getJsonReadings(): Promise<Reading[]> {
         console.error('Error reading readings.json:', error);
         jsonReadings = []; // Reset JSON cache on error
         return jsonReadings;
+    }
+}
+
+// Read or initialize realtime.json for dummy real-time data
+async function getDummyRealtimeReadings(): Promise<Reading[]> {
+    const filePath = path.join(process.cwd(), 'src', 'data', 'realtime.json');
+    try {
+        if (!existsSync(filePath)) {
+            console.log('realtime.json not found, initializing empty file');
+            dummyReadings = [];
+            await fs.writeFile(filePath, JSON.stringify(dummyReadings, null, 2), 'utf-8');
+            return dummyReadings;
+        }
+
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        dummyReadings = JSON.parse(fileContent) as Reading[];
+        console.log('Loaded readings from realtime.json:', dummyReadings.length);
+        return dummyReadings;
+    } catch (error) {
+        console.error('Error reading realtime.json:', error);
+        dummyReadings = [];
+        return dummyReadings;
     }
 }
 
@@ -108,6 +156,8 @@ function watchReadingsFile() {
 
 // Initialize file watcher and dummy data updates
 if (USE_DUMMY_REALTIME) {
+    // Initialize realtime.json if it doesn't exist
+    getDummyRealtimeReadings();
     setInterval(updateDummyReadings, 5000); // Update every 5 seconds
 }
 watchReadingsFile();
@@ -115,7 +165,23 @@ watchReadingsFile();
 // Get readings based on configuration
 async function getAllReadings(): Promise<Reading[]> {
     if (USE_DUMMY_REALTIME) {
-        return dummyReadings.length ? dummyReadings : [generateDummyReading(new Date().toISOString())];
+        if (!dummyReadings.length) {
+            await getDummyRealtimeReadings();
+            if (!dummyReadings.length) {
+                dummyReadings.push(generateDummyReading(new Date().toISOString()));
+                await writeDummyReadingsToFile();
+            }
+        }
+        return dummyReadings;
+    }
+
+    if (USE_DUMMY_JSON) {
+        const readings = await getJsonReadings();
+        if (!readings.length) {
+            console.log('No readings in readings.json, returning single dummy reading');
+            return [generateDummyReading(new Date().toISOString())];
+        }
+        return readings; // Use readings.json without appending
     }
 
     if (USE_REALTIME) {
