@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { getWarnings, thresholds } from '@/utils/device';
 import { useDeviceCode } from '@/hooks/device/use-device-code';
 import { useDeviceData } from '@/hooks/device/use-device-data';
-import { DashboardChart } from '@/components/custom/dashboard/chart';
+import { DashboardLineChart } from '@/components/custom/dashboard/chart';
 import { ErrorState } from '@/components/custom/dashboard/status/error';
 import { MetricsGrid } from '@/components/custom/dashboard/metrics-grid';
 import { DashboardBarChart } from '@/components/custom/dashboard/bar-chart';
@@ -257,7 +257,8 @@ export default function Dashboard() {
                         <WarningsPanel data={data} warningHistory={warningHistory} />
                     )}
 
-                    <DashboardChart
+                    {/* Line Chart */}
+                    <DashboardLineChart
                         data={chartData}
                         timeFilter={timeFilter}
                         onTimeFilterChangeAction={updateTimeFilter}
@@ -266,12 +267,14 @@ export default function Dashboard() {
                         onRefresh={refreshData}
                     />
 
+                    {/* Bar Chart */}
                     <DashboardBarChart
                         data={chartData}
                         selectedMetrics={selectedMetrics}
                         onRefresh={refreshData}
                     />
 
+                    {/* Area Chart */}
                     <DashboardAreaChart
                         data={chartData}
                         onRefresh={refreshData}
