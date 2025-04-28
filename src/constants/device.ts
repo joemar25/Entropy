@@ -1,1 +1,1 @@
-export const VALID_DEVICE_CODES = ['demo', 'demo123', 'test', 'test456', 'device', 'device789'] 
+export const VALID_DEVICE_CODES = ['airquant-demo', 'demo', 'demo123', 'test', 'test456', 'device', 'device789'] 
