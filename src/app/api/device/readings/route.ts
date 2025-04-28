@@ -19,8 +19,8 @@ interface Reading {
 }
 
 // Configuration for data source
-const USE_DUMMY_REALTIME = true; // Set to false to disable dummy real-time data
-const USE_DUMMY_JSON = false; // Set to true to use dummy JSON data without appending
+const USE_DUMMY_REALTIME = false; // Set to false to disable dummy real-time data
+const USE_DUMMY_JSON = true; // Set to true to use dummy JSON data without appending
 const USE_REALTIME = false;
 
 // Validate environment configuration
