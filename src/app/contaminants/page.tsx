@@ -85,12 +85,11 @@ export default function ContaminantInfoPage() {
     );
 
     return (
-        <div className="p-4">
-            {/* Logo and App Name */}
-            <div className="flex flex-col items-center mb-6">
-                <Image src="/logo.svg" alt="AIRQuant Logo" width={80} height={80} />
-                <h1 className="text-3xl font-bold">AIRQuant</h1>
-                <p className="text-sm">By Team Entropy</p>
+        <div className='space-y-6 p-4'>
+            <div className='flex flex-col items-center space-y-2 mb-4'>
+                <Image src='/logo.svg' alt='AIRQuant Logo' width={80} height={80} />
+                <h1 className='text-2xl font-bold'>AIRQuant</h1>
+                <p className='text-sm text-muted-foreground'>By Team Entropy</p>
             </div>
 
             {/* Search Bar */}
