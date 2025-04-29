@@ -5,7 +5,7 @@ import { Toaster } from 'sonner'
 import { Header } from '@/components/custom/header'
 import { Footer } from '@/components/custom/footer'
 import { ThemeProvider } from '@/components/provider/theme-provider'
-import { ScrollToTopButton } from '@/components/custom/scroll-to-top-button' // <-- import here
+import { ScrollToTopButton } from '@/components/custom/scroll-to-top-button'
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -36,6 +36,13 @@ export default function RootLayout({
       className={`${geistSans.className} ${geistMono.variable} antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Add favicon/logo */}
+        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        {/* Optional: Add a title or other meta tags if needed */}
+        <meta name="application-name" content="AIRQuant" />
+      </head>
+
       <body className='text-foreground select-none bg-background min-h-screen overflow-x-hidden' suppressHydrationWarning>
         <ThemeProvider
           attribute='class'
@@ -53,7 +60,7 @@ export default function RootLayout({
             <Footer />
           </div>
 
-          {/* Insert Scroll To Top Button */}
+          {/* Scroll To Top Button */}
           <ScrollToTopButton />
 
           <Toaster
